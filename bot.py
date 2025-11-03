@@ -4,7 +4,7 @@ import os
 import json
 import asyncio
 from datetime import datetime, timedelta
-from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton
+from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ConversationHandler, ContextTypes, CallbackQueryHandler
 from telethon import TelegramClient
 from telethon.errors import SessionPasswordNeededError, FloodWaitError, ChatAdminRequiredError
@@ -34,9 +34,8 @@ PHONE, API_ID, API_HASH, CODE, PASSWORD, MESSAGE, INTERVAL, DELETE_CONFIRM, AD_C
 # Ma'lumotlar
 users = {}
 user_stats = {}
-user_jobs = {}  # Foydalanuvchilarning aktiv joblarini saqlash
-admins = set()  # Adminlar ro'yxati
-subscription_price = 10000  # Default obuna narxi
+admins = set()
+subscription_price = 10000
 
 def save_data():
     with open('data/users.json', 'w', encoding='utf-8') as f:
@@ -82,19 +81,15 @@ def load_data():
         subscription_price = 10000
 
 async def clear_user_account(user_id, context=None):
-    """Foydalanuvchi akkauntini to'liq tozalash"""
     if user_id in users:
-        # Client disconnect qilish
         if users[user_id].get('client'):
             try:
                 client = users[user_id]['client']
                 if client.is_connected():
                     await client.disconnect()
-                await client.__aexit__(None, None, None)
             except Exception as e:
                 print(f"Client disconnect xatolik: {e}")
         
-        # Session faylini o'chirish
         if users[user_id].get('phone'):
             session_file = f"sessions/{users[user_id]['phone'].replace('+', '')}.session"
             try:
@@ -107,29 +102,19 @@ async def clear_user_account(user_id, context=None):
                         except PermissionError:
                             if attempt < 2:
                                 await asyncio.sleep(1)
-                            else:
-                                print(f"Session faylini o'chirib bo'lmadi: {session_file}")
             except Exception as e:
                 print(f"Session faylini o'chirishda xatolik: {e}")
         
-        # Takroriy yuborishni to'xtatish
         if context:
             job_name = f"repeat_send_{user_id}"
             current_jobs = context.job_queue.get_jobs_by_name(job_name)
             for job in current_jobs:
                 job.schedule_removal()
         
-        # Akkaunt ma'lumotlarini to'liq tozalash
         users[user_id].update({
-            'phone': None, 
-            'api_id': None, 
-            'api_hash': None, 
-            'client': None, 
-            'message': None, 
-            'sending': False,
-            'last_message': None,
-            'current_interval': None,
-            'next_send_time': None
+            'phone': None, 'api_id': None, 'api_hash': None, 'client': None,
+            'message': None, 'sending': False, 'last_message': None,
+            'current_interval': None, 'next_send_time': None
         })
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -155,31 +140,30 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
         save_data()
     
-    # Asosiy menyu - doim bir xil tartibda
     keyboard = [
-        ['📤 Xabar Yuborish', '📊 Mening Xabarlarim'],
-        ['💰 Obunalarim', '➕ Akkaunt Qo\'shish' if not users[user_id].get('phone') else '🗑️ Akkauntni O\'chirish'],
-        ['📚 Qo\'llanma']
+        ['Xabar Yuborish', 'Mening Xabarlarim'],
+        ['Obunalarim', 'Akkaunt Qo\'shish' if not users[user_id].get('phone') else 'Akkauntni O\'chirish'],
+        ['Qo\'llanma']
     ]
     
     if user_id in admins:
-        keyboard.append(['👨‍💼 Admin Panel'])
+        keyboard.append(['Admin Panel'])
     
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     
-    welcome_text = """🎊 AvtoXabar Botiga Xush Kelibsiz! 🎊
+    welcome_text = """AvtoXabar Botiga Xush Kelibsiz!
 
-🚀 Bot Imkoniyatlari:
-• 📤 Guruhlarga avtomatik xabar yuborish
-• 📊 Xabar yuborish statistikasi 
-• 💰 Arzon narx - oyiga 10,000 so'm
+Bot Imkoniyatlari:
+• Guruhlarga avtomatik xabar yuborish
+• Xabar yuborish statistikasi 
+• Arzon narx - oyiga 10,000 so'm
 
-🎯 Boshlash Uchun:
-1️⃣ 💰 Obunalarim - Obuna sotib oling
-2️⃣ ➕ Akkaunt Qo'shish - Telefon raqamingizni qo'shing  
-3️⃣ 📤 Xabar Yuborish - Xabarlarni yuboring
+Boshlash Uchun:
+1️⃣ Obunalarim - Obuna sotib oling
+2️⃣ Akkaunt Qo'shish - Telefon raqamingizni qo'shing  
+3️⃣ Xabar Yuborish - Xabarlarni yuboring
 
-⚡ Tez va Samarali Marketing!"""
+Tez va Samarali Marketing!"""
     
     await update.message.reply_text(welcome_text, reply_markup=reply_markup)
     return ConversationHandler.END
@@ -192,44 +176,42 @@ async def handle_main_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         await start(update, context)
         return ConversationHandler.END
     
-    print(f"User {user_id} pressed: {text}")
-    
-    if text == '💰 Obunalarim':
+    if text == 'Obunalarim':
         if users[user_id].get('subscribed'):
             end_date = datetime.fromisoformat(users[user_id]['subscription_end'])
             days_left = (end_date - datetime.now()).days
             if days_left > 0:
-                subscription_text = f"""💎 Sizning Obunangiz
+                subscription_text = f"""Sizning Obunangiz
 
-✅ Holat: 🟢 Faol
-📅 Muddati: {days_left} kun qoldi
-💳 Narxi: {subscription_price} so'm/oy
+Holat: Faol
+Muddati: {days_left} kun qoldi
+Narxi: {subscription_price} so'm/oy
 
-✨ Xabar yuborish funksiyasi faollashtirilgan"""
+Xabar yuborish funksiyasi faollashtirilgan"""
             else:
                 users[user_id]['subscribed'] = False
-                subscription_text = "❌ Obuna muddati tugagan!"
+                subscription_text = "Obuna muddati tugagan!"
         else:
-            subscription_text = f"""💳 Obuna Xizmati
+            subscription_text = f"""Obuna Xizmati
 
-📦 1 oylik obuna: {subscription_price} so'm
-⏰ Muddat: 30 kun  
-📈 Cheklovsiz xabar yuborish
+1 oylik obuna: {subscription_price} so'm
+Muddat: 30 kun  
+Cheklovsiz xabar yuborish
 
-👨‍💼 Admin bilan bog'lanish: @{ADMIN_USERNAME}
+Admin bilan bog'lanish: @{ADMIN_USERNAME}
 
-💬 To'lov qilish uchun admin bilan bog'laning."""
+To'lov qilish uchun admin bilan bog'laning."""
         
         await update.message.reply_text(subscription_text)
         return ConversationHandler.END
     
-    elif text == '📊 Mening Xabarlarim':
+    elif text == 'Mening Xabarlarim':
         if not users[user_id].get('subscribed'):
             await update.message.reply_text(
-                """❌ Sizda xabarlar mavjud emas!
+                """Sizda xabarlar mavjud emas!
 
-📤 Yangi xabar yuborish uchun Xabar Yuborish bo'limiga o'ting.
-💰 Avval obuna sotib olishingiz kerak!"""
+Yangi xabar yuborish uchun Xabar Yuborish bo'limiga o'ting.
+Avval obuna sotib olishingiz kerak!"""
             )
             return ConversationHandler.END
         
@@ -239,11 +221,9 @@ async def handle_main_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         else:
             last_sent = "Hali xabar yuborilmagan"
         
-        # Keyingi xabar vaqtini hisoblash
         next_send_info = ""
         has_active_job = False
         
-        # Job mavjudligini tekshirish
         job_name = f"repeat_send_{user_id}"
         current_jobs = context.job_queue.get_jobs_by_name(job_name)
         has_active_job = len(current_jobs) > 0
@@ -255,32 +235,28 @@ async def handle_main_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
                 minutes_left = int(time_left.total_seconds() // 60)
                 seconds_left = int(time_left.total_seconds() % 60)
                 interval = users[user_id].get('current_interval', 'Noma\'lum')
-                next_send_info = f"⏳ Keyingi xabar: {minutes_left}min {seconds_left}sek\n🔄 Interval: {interval}"
+                next_send_info = f"Keyingi xabar: {minutes_left}min {seconds_left}sek\nInterval: {interval}"
             else:
-                next_send_info = "⏳ Keyingi xabar: Tez orada"
+                next_send_info = "Keyingi xabar: Tez orada"
         else:
-            next_send_info = "⏳ Keyingi xabar: Rejalashtirilmagan"
+            next_send_info = "Keyingi xabar: Rejalashtirilmagan"
         
-        stats_text = f"""📊 Xabar Yuborish Statistikasi
+        stats_text = f"""Xabar Yuborish Statistikasi
 
-📈 Guruhlar soni: {stats['total_groups']}
-📤 Yuborilgan xabarlar: {stats['total_messages']}
-⏰ So'ngi yuborilgan: {last_sent}
+Guruhlar soni: {stats['total_groups']}
+Yuborilgan xabarlar: {stats['total_messages']}
+So'ngi yuborilgan: {last_sent}
 
 {next_send_info}
-{'🟢 Aktiv xabar yuborish' if has_active_job else '🔴 Xabar yuborish to\'xtatilgan'}
+{'Aktiv xabar yuborish' if has_active_job else 'Xabar yuborish to\'xtatilgan'}
 
-🎯 Sizning marketing faolligingiz"""
+Sizning marketing faolligingiz"""
         
-        # Inline keyboard yaratish
         keyboard = []
-        
         if users[user_id].get('last_message'):
-            keyboard.append([InlineKeyboardButton("🔄 Oxirgi xabarni qayta yuborish", callback_data=f"resend_{user_id}")])
-        
-        # Agar aktiv job bo'lsa, to'xtatish tugmasini qo'shish
+            keyboard.append([InlineKeyboardButton("Oxirgi xabarni qayta yuborish", callback_data=f"resend_{user_id}")])
         if has_active_job:
-            keyboard.append([InlineKeyboardButton("⏹️ Xabarni To'xtatish", callback_data=f"stop_{user_id}")])
+            keyboard.append([InlineKeyboardButton("Xabarni To'xtatish", callback_data=f"stop_{user_id}")])
         
         if keyboard:
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -290,52 +266,52 @@ async def handle_main_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         return ConversationHandler.END
     
-    elif text == '➕ Akkaunt Qo\'shish':
+    elif text == 'Akkaunt Qo\'shish':
         if not users[user_id].get('subscribed'):
             await update.message.reply_text(
-                f"""❌ Avval obuna sotib olishingiz kerak!
+                f"""Avval obuna sotib olishingiz kerak!
 
-💰 Obunalarim bo'limi orqali obuna sotib oling."""
+Obunalarim bo'limi orqali obuna sotib oling."""
             )
             return ConversationHandler.END
             
         if users[user_id].get('phone'):
             await update.message.reply_text(
-                """❌ Akkaunt allaqachon qo'shilgan!
+                """Akkaunt allaqachon qo'shilgan!
 
-🗑️ Agar boshqa akkaunt qo'shmoqchi bo'lsangiz, avval joriy akkauntni o'chiring."""
+Agar boshqa akkaunt qo'shmoqchi bo'lsangiz, avval joriy akkauntni o'chiring."""
             )
             return ConversationHandler.END
         else:
-            keyboard = [['🔙 Bekor qilish']]
+            keyboard = [['Bekor qilish']]
             reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             await update.message.reply_text(
-                """📱 Telefon Raqamingizni Kiriting:
+                """Telefon Raqamingizni Kiriting:
 
-📞 Format: +XXXXXXXXXXX
-💡 Eslatma: Telefon raqamingiz Telegram hisobingizga bog'liq bo'lishi kerak.
+Format: +XXXXXXXXXXX
+Eslatma: Telefon raqamingiz Telegram hisobingizga bog'liq bo'lishi kerak.
 
-🌍 Har qanday davlat nomerini + bilan boshlab yozishingiz mumkin""",
+Har qanday davlat nomerini + bilan boshlab yozishingiz mumkin""",
                 reply_markup=reply_markup
             )
             return PHONE
     
-    elif text == '🗑️ Akkauntni O\'chirish':
+    elif text == 'Akkauntni O\'chirish':
         if not users[user_id].get('phone'):
             await update.message.reply_text(
-                """❌ Sizda akkaunt mavjud emas!
+                """Sizda akkaunt mavjud emas!
 
-➕ Avval akkaunt qo'shing."""
+Avval akkaunt qo'shing."""
             )
             return ConversationHandler.END
         
         keyboard = [
-            ['✅ Ha, akkauntni o\'chirish', '❌ Yo\'q, bekor qilish']
+            ['Ha, akkauntni o\'chirish', 'Yo\'q, bekor qilish']
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         
         await update.message.reply_text(
-            """⚠️ Akkauntni O'chirish
+            """Akkauntni O'chirish
 
 Haqiqatan ham akkauntingizni o'chirmoqchimisiz?
 
@@ -344,77 +320,77 @@ Bu amalni ortga qaytarib bo'lmaydi!""",
         )
         return DELETE_CONFIRM
     
-    elif text == '📤 Xabar Yuborish':
+    elif text == 'Xabar Yuborish':
         if not users[user_id].get('subscribed'):
             await update.message.reply_text(
-                f"""❌ Xabar yuborish uchun obuna kerak!
+                f"""Xabar yuborish uchun obuna kerak!
 
-💰 Obuna sotib olish uchun Obunalarim tugmasini bosing."""
+Obuna sotib olish uchun Obunalarim tugmasini bosing."""
             )
             return ConversationHandler.END
         
         if not users[user_id].get('phone') or users[user_id].get('client') is None:
             await update.message.reply_text(
-                """❌ Avval akkaunt qo'shishingiz kerak!
+                """Avval akkaunt qo'shishingiz kerak!
 
-➕ Akkaunt Qo'shish tugmasini bosing."""
+Akkaunt Qo'shish tugmasini bosing."""
             )
             return ConversationHandler.END
         
-        keyboard = [['🔙 Bekor qilish']]
+        keyboard = [['Bekor qilish']]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
-            """💬 Xabarni Kiriting:
+            """Xabarni Kiriting:
 
-📝 Guruhlarga yuboriladigan xabaringizni yozing:""",
+Guruhlarga yuboriladigan xabaringizni yozing:""",
             reply_markup=reply_markup
         )
         return MESSAGE
 
-    elif text == '👨‍💼 Admin Panel':
+    elif text == 'Admin Panel':
         if user_id in admins:
             await admin_panel(update, context)
         else:
-            await update.message.reply_text("❌ Siz admin emassiz!")
+            await update.message.reply_text("Siz admin emassiz!")
         return ConversationHandler.END
 
-    elif text == '📚 Qo\'llanma':
+    elif text == 'Qo\'llanma':
         await show_manual(update, context)
         return ConversationHandler.END
 
     return ConversationHandler.END
 
 async def show_manual(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    manual_text = """📚 Bot Qo'llanmasi
+    manual_text = """Bot Qo'llanmasi
 
-🎯 Bot Nima Qiladi?
-└─ 📤 Guruhlarga avtomatik xabar yuborish
+Bot Nima Qiladi?
+└─ Guruhlarga avtomatik xabar yuborish
 
-🛠️ Qanday Ishlatiladi?
+Qanday Ishlatiladi?
 ├─ 1️⃣ Obuna sotib olish
 ├─ 2️⃣ Akkaunt qo'shish
 ├─ 3️⃣ Xabar yuborish
 └─ 4️⃣ Statistikani ko'rish
 
-⏰ Xabar Yuborish Intervali
-├─ ⏱️ Har 5 daqiqa
-├─ ⏱️ Har 10 daqiqa  
-├─ ⏱️ Har 30 daqiqa
-└─ ⏱️ Har 1 soat
+Xabar Yuborish Intervali
+├─ Har 5 daqiqa
+├─ Har 10 daqiqa  
+├─ Har 30 daqiqa
+└─ Har 1 soat
 
-💡 Maslahatlar
-├─ ✅ Xabarlar qisqa va tushunarli bo'lsin
-├─ ✅ Reklama qo'shish tavsiya etiladi
-├─ ✅ Flooddan saqlaning
-└─ ✅ Har 2 sekundda 1 xabar
+Maslahatlar
+├─ Xabarlar qisqa va tushunarli bo'lsin
+├─ Reklama qo'shish tavsiya etiladi
+├─ Flooddan saqlaning
+└─ Har 2 sekundda 1 xabar
 
-👨‍💼 Admin:
+Admin:
 └─ @MasulyatliOdam
 
-🤖 Bot:
+Bot:
 └─ @AvtoXabarrBot
 
-🔧 Qo'llab-quvvatlash:
+Qo'llab-quvvatlash:
 └─ Muammo bo'lsa admin bilan bog'laning"""
     
     await update.message.reply_text(manual_text)
@@ -429,18 +405,18 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     if callback_data.startswith('resend_'):
         if not users[user_id].get('last_message'):
             await query.edit_message_text(
-                """❌ Qayta yuborish uchun xabar topilmadi!
+                """Qayta yuborish uchun xabar topilmadi!
 
-📤 Avval yangi xabar yuboring."""
+Avval yangi xabar yuboring."""
             )
             return
         
         message_text = users[user_id]['last_message']
         
         progress_msg = await query.message.reply_text(
-            """🔄 Xabar qayta yuborilmoqda...
+            """Xabar qayta yuborilmoqda...
 
-⏳ Jarayon 1-2 daqiqa davom etadi..."""
+Jarayon 1-2 daqiqa davom etadi..."""
         )
         
         sent_count, result_text = await send_message_to_groups(user_id, message_text)
@@ -470,86 +446,77 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         await query.message.reply_text(result_text)
     
     elif callback_data.startswith('stop_'):
-        # Xabar yuborishni to'xtatish
         target_user_id = int(callback_data.split('_')[1])
         
-        # Faqat o'zining xabarini to'xtatishi mumkin
         if user_id != target_user_id:
-            await query.edit_message_text("❌ Siz boshqa foydalanuvchining xabarini to'xtata olmaysiz!")
+            await query.edit_message_text("Siz boshqa foydalanuvchining xabarini to'xtata olmaysiz!")
             return
         
-        # Joblarni to'xtatish
         job_name = f"repeat_send_{target_user_id}"
         current_jobs = context.job_queue.get_jobs_by_name(job_name)
         
         if not current_jobs:
             await query.edit_message_text(
-                """❌ Aktiv xabar yuborish topilmadi!
+                """Aktiv xabar yuborish topilmadi!
 
-📊 Xabar yuborish allaqachon to'xtatilgan."""
+Xabar yuborish allaqachon to'xtatilgan."""
             )
             return
         
-        # Barcha joblarni o'chirish
         for job in current_jobs:
             job.schedule_removal()
         
-        # Foydalanuvchi ma'lumotlarini yangilash
         users[target_user_id]['current_interval'] = None
         users[target_user_id]['next_send_time'] = None
         save_data()
         
-        # Xabarni yangilash
         stats = user_stats.get(str(target_user_id), {'total_groups': 0, 'total_messages': 0, 'last_sent': None})
         if stats['last_sent']:
             last_sent = datetime.fromisoformat(stats['last_sent']).strftime("%Y-%m-%d %H:%M:%S")
         else:
             last_sent = "Hali xabar yuborilmagan"
         
-        updated_text = f"""📊 Xabar Yuborish Statistikasi
+        updated_text = f"""Xabar Yuborish Statistikasi
 
-📈 Guruhlar soni: {stats['total_groups']}
-📤 Yuborilgan xabarlar: {stats['total_messages']}
-⏰ So'ngi yuborilgan: {last_sent}
+Guruhlar soni: {stats['total_groups']}
+Yuborilgan xabarlar: {stats['total_messages']}
+So'ngi yuborilgan: {last_sent}
 
-⏳ Keyingi xabar: Rejalashtirilmagan
-🔴 Xabar yuborish to'xtatilgan
+Keyingi xabar: Rejalashtirilmagan
+Xabar yuborish to'xtatilgan
 
-✅ Xabar yuborish muvaffaqiyatli to'xtatildi!
+Xabar yuborish muvaffaqiyatli to'xtatildi!
 
-📤 Yangi xabar yuborish uchun Xabar Yuborish bo'limiga o'ting."""
+Yangi xabar yuborish uchun Xabar Yuborish bo'limiga o'ting."""
 
-        # Yangilangan xabarni yuborish
         keyboard = []
         if users[target_user_id].get('last_message'):
-            keyboard.append([InlineKeyboardButton("🔄 Oxirgi xabarni qayta yuborish", callback_data=f"resend_{target_user_id}")])
+            keyboard.append([InlineKeyboardButton("Oxirgi xabarni qayta yuborish", callback_data=f"resend_{target_user_id}")])
         
         reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
         
         try:
             await query.edit_message_text(updated_text, reply_markup=reply_markup)
         except Exception as e:
-            # Agar xabarni yangilab bo'lmasa, yangi xabar yuborish
             await query.message.reply_text(updated_text, reply_markup=reply_markup)
 
 async def handle_delete_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     text = update.message.text
     
-    if text == '✅ Ha, akkauntni o\'chirish':
+    if text == 'Ha, akkauntni o\'chirish':
         await clear_user_account(user_id, context)
-        
         await update.message.reply_text(
-            """✅ Akkaunt muvaffaqiyatli o'chirildi!
+            """Akkaunt muvaffaqiyatli o'chirildi!
 
-➕ Yangi akkaunt qo'shishingiz mumkin."""
+Yangi akkaunt qo'shishingiz mumkin."""
         )
         save_data()
         await start(update, context)
     
-    elif text == '❌ Yo\'q, bekor qilish':
+    elif text == 'Yo\'q, bekor qilish':
         await update.message.reply_text(
-            "❌ Akkaunt o'chirish bekor qilindi!"
+            "Akkaunt o'chirish bekor qilindi!"
         )
         await start(update, context)
     
@@ -559,36 +526,34 @@ async def handle_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     user_id = update.message.from_user.id
     
-    if text == '🔙 Bekor qilish':
-        # Avvalgi ma'lumotlarni tozalash
+    if text == 'Bekor qilish':
         if users[user_id].get('phone'):
             await clear_user_account(user_id, context)
-        await update.message.reply_text("❌ Akkaunt qo'shish bekor qilindi!")
+        await update.message.reply_text("Akkaunt qo'shish bekor qilindi!")
         await start(update, context)
         return ConversationHandler.END
     
-    # Agar avval akkaunt mavjud bo'lsa, tozalash
     if users[user_id].get('phone'):
         await clear_user_account(user_id, context)
     
     if re.match(r'^\+\d{10,15}$', text):
         users[user_id]['phone'] = text
-        keyboard = [['🔙 Bekor qilish']]
+        keyboard = [['Bekor qilish']]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
-            """🔐 API ID ni Kiriting:
+            """API ID ni Kiriting:
 
-🌐 Manzil: https://my.telegram.org
-📋 API ID raqamini yuboring:""",
+Manzil: https://my.telegram.org
+API ID raqamini yuboring:""",
             reply_markup=reply_markup
         )
         return API_ID
     else:
         await update.message.reply_text(
-            """❌ Noto'g'ri format!
+            """Noto'g'ri format!
 
-📞 Iltimos, +XXXXXXXXXXX shaklida yuboring.
-Misol: +998901234567 yoki +441234567890"""
+Iltimos, +XXXXXXXXXXX shaklida yuboring.
+Misol: +998901234567"""
         )
         return PHONE
 
@@ -596,31 +561,30 @@ async def handle_api_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     user_id = update.message.from_user.id
     
-    if text == '🔙 Bekor qilish':
-        # Akkaunt ma'lumotlarini to'liq tozalash
+    if text == 'Bekor qilish':
         if users[user_id].get('phone'):
             await clear_user_account(user_id, context)
-        await update.message.reply_text("❌ Akkaunt qo'shish bekor qilindi!")
+        await update.message.reply_text("Akkaunt qo'shish bekor qilindi!")
         await start(update, context)
         return ConversationHandler.END
     
     if text.isdigit():
         users[user_id]['api_id'] = int(text)
-        keyboard = [['🔙 Bekor qilish']]
+        keyboard = [['Bekor qilish']]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
-            """🔑 API HASH ni Kiriting:
+            """API HASH ni Kiriting:
 
-🌐 Manzil: https://my.telegram.org
-🔑 API HASH ni yuboring:""",
+Manzil: https://my.telegram.org
+API HASH ni yuboring:""",
             reply_markup=reply_markup
         )
         return API_HASH
     else:
         await update.message.reply_text(
-            """❌ API ID raqam bo'lishi kerak!
+            """API ID raqam bo'lishi kerak!
 
-🔢 Faqat raqamlardan iborat bo'lsin."""
+Faqat raqamlardan iborat bo'lsin."""
         )
         return API_ID
 
@@ -628,11 +592,10 @@ async def handle_api_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     text = update.message.text
     
-    if text == '🔙 Bekor qilish':
-        # Akkaunt ma'lumotlarini to'liq tozalash
+    if text == 'Bekor qilish':
         if users[user_id].get('phone'):
             await clear_user_account(user_id, context)
-        await update.message.reply_text("❌ Akkaunt qo'shish bekor qilindi!")
+        await update.message.reply_text("Akkaunt qo'shish bekor qilindi!")
         await start(update, context)
         return ConversationHandler.END
     
@@ -641,13 +604,11 @@ async def handle_api_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
     session_name = f"sessions/{users[user_id]['phone'].replace('+', '')}"
     
     try:
-        # Avvalgi clientni tozalash
         if users[user_id].get('client'):
             try:
                 old_client = users[user_id]['client']
                 if old_client.is_connected():
                     await old_client.disconnect()
-                await old_client.__aexit__(None, None, None)
             except Exception as e:
                 print(f"Old client cleanup error: {e}")
         
@@ -657,28 +618,27 @@ async def handle_api_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await client.connect()
         if not await client.is_user_authorized():
             await client.send_code_request(users[user_id]['phone'])
-            keyboard = [['🔙 Bekor qilish']]
+            keyboard = [['Bekor qilish']]
             reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             await update.message.reply_text(
-                """📲 Kod Yuborildi!
+                """Kod Yuborildi!
 
-✅ Kod Telegram ilovasiga yuborildi (SMS emas)!
-📱 Telegram chatini oching va kodni yuboring:""",
+Kod Telegram ilovasiga yuborildi (SMS emas)!
+Telegram chatini oching va kodni yuboring:""",
                 reply_markup=reply_markup
             )
             return CODE
         else:
-            await update.message.reply_text("✅ Akkaunt muvaffaqiyatli qo'shilgan!")
+            await update.message.reply_text("Akkaunt muvaffaqiyatli qo'shilgan!")
             save_data()
             await start(update, context)
             return ConversationHandler.END
     except Exception as e:
         await update.message.reply_text(
-            f"❌ Xatolik: {str(e)}\n\n"
-            "🔧 API ma'lumotlari yoki ulanishni tekshiring.\n"
-            "🔄 Jarayonni qayta boshlang."
+            f"Xatolik: {str(e)}\n\n"
+            "API ma'lumotlari yoki ulanishni tekshiring.\n"
+            "Jarayonni qayta boshlang."
         )
-        # Xatolik yuz bersa ma'lumotlarni tozalash
         await clear_user_account(user_id, context)
         return ConversationHandler.END
 
@@ -686,33 +646,32 @@ async def handle_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     text = update.message.text
     
-    if text == '🔙 Bekor qilish':
-        # Akkaunt ma'lumotlarini to'liq tozalash
+    if text == 'Bekor qilish':
         if users[user_id].get('phone'):
             await clear_user_account(user_id, context)
-        await update.message.reply_text("❌ Akkaunt qo'shish bekor qilindi!")
+        await update.message.reply_text("Akkaunt qo'shish bekor qilindi!")
         await start(update, context)
         return ConversationHandler.END
     
     try:
         await users[user_id]['client'].sign_in(users[user_id]['phone'], text)
-        await update.message.reply_text("✅ Akkaunt muvaffaqiyatli qo'shilgan!")
+        await update.message.reply_text("Akkaunt muvaffaqiyatli qo'shilgan!")
     except SessionPasswordNeededError:
-        keyboard = [['🔙 Bekor qilish']]
+        keyboard = [['Bekor qilish']]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
-            """🔒 Ikki faktorli parol kerak!
+            """Ikki faktorli parol kerak!
 
-📝 Iltimos, ikki faktorli autentifikatsiya parolini yuboring:""",
+Iltimos, ikki faktorli autentifikatsiya parolini yuboring:""",
             reply_markup=reply_markup
         )
         return PASSWORD
     except Exception as e:
         await update.message.reply_text(
-            f"❌ Xatolik: {str(e)}\n\n"
-            "⚠️ Kod xato bo'lishi mumkin, Telegram chatini qayta tekshiring."
+            f"Xatolik: {str(e)}\n\n"
+            "Kod xato bo'lishi mumkin, Telegram chatini qayta tekshiring."
         )
-        return ConversationHandler.END
+        return CODE
     
     save_data()
     await start(update, context)
@@ -722,23 +681,22 @@ async def handle_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     text = update.message.text
     
-    if text == '🔙 Bekor qilish':
-        # Akkaunt ma'lumotlarini to'liq tozalash
+    if text == 'Bekor qilish':
         if users[user_id].get('phone'):
             await clear_user_account(user_id, context)
-        await update.message.reply_text("❌ Akkaunt qo'shish bekor qilindi!")
+        await update.message.reply_text("Akkaunt qo'shish bekor qilindi!")
         await start(update, context)
         return ConversationHandler.END
     
     try:
         await users[user_id]['client'].sign_in(password=text)
-        await update.message.reply_text("✅ Akkaunt muvaffaqiyatli qo'shilgan!")
+        await update.message.reply_text("Akkaunt muvaffaqiyatli qo'shilgan!")
     except Exception as e:
         await update.message.reply_text(
-            f"❌ Xatolik: {str(e)}\n\n"
-            "⚠️ Parol xato bo'lishi mumkin."
+            f"Xatolik: {str(e)}\n\n"
+            "Parol xato bo'lishi mumkin."
         )
-        return ConversationHandler.END
+        return PASSWORD
     
     save_data()
     await start(update, context)
@@ -748,14 +706,14 @@ async def send_message_to_groups(user_id, message_text):
     user_data = users[user_id]
     
     if user_data.get('client') is None:
-        return 0, "❌ Akkaunt topilmadi"
+        return 0, "Akkaunt topilmadi"
     
     try:
         client = user_data['client']
         await client.connect()
         
         if not await client.is_user_authorized():
-            return 0, "❌ Akkaunt avtorizatsiyadan o'tmagan"
+            return 0, "Akkaunt avtorizatsiyadan o'tmagan"
         
         groups_sent = 0
         failed_groups = 0
@@ -763,7 +721,7 @@ async def send_message_to_groups(user_id, message_text):
         
         advertisement = ""
         if user_data.get('add_ad', True):
-            advertisement = f"\n\n🤖 @{BOT_USERNAME} - Guruhlarga avtomatik xabar yuborish"
+            advertisement = f"\n\n@{BOT_USERNAME} - Guruhlarga avtomatik xabar yuborish"
         full_message = message_text + advertisement
         
         async for dialog in client.iter_dialogs():
@@ -771,34 +729,26 @@ async def send_message_to_groups(user_id, message_text):
                 try:
                     await client.send_message(dialog.id, full_message)
                     groups_sent += 1
-                    group_list.append(f"✅ {dialog.name}")
+                    group_list.append(f"{dialog.name}")
                     await asyncio.sleep(2)
                 except FloodWaitError as e:
                     failed_groups += 1
-                    group_list.append(f"❌ {dialog.name} - Flood kutish: {e.seconds}s")
+                    group_list.append(f"{dialog.name} - Flood kutish: {e.seconds}s")
                     await asyncio.sleep(e.seconds)
                 except ChatAdminRequiredError:
                     failed_groups += 1
-                    group_list.append(f"❌ {dialog.name} - Guruh admini huquqi kerak")
+                    group_list.append(f"{dialog.name} - Guruh admini huquqi kerak")
                 except Exception as e:
                     failed_groups += 1
-                    error_msg = str(e)
-                    if "Chat admin privileges are required" in error_msg:
-                        error_msg = "Guruh admini huquqi kerak"
-                    elif "Forbidden" in error_msg:
-                        error_msg = "Guruhga kirish taqiqlangan"
-                    elif "Timeout" in error_msg:
-                        error_msg = "Vaqt tugadi"
-                    elif "PEER_ID_INVALID" in error_msg:
-                        error_msg = "Guruh topilmadi"
-                    group_list.append(f"❌ {dialog.name} - {error_msg[:50]}")
+                    error_msg = str(e)[:50]
+                    group_list.append(f"{dialog.name} - {error_msg}")
                     continue
         
         await client.disconnect()
         
-        result_text = f"📊 Xabar Yuborish Natijasi:\n\n"
-        result_text += f"✅ Muvaffaqiyatli: {groups_sent}\n"
-        result_text += f"❌ Xatolik: {failed_groups}\n\n"
+        result_text = f"Xabar Yuborish Natijasi:\n\n"
+        result_text += f"Muvaffaqiyatli: {groups_sent}\n"
+        result_text += f"Xatolik: {failed_groups}\n\n"
         
         if group_list:
             result_text += "Guruhlar:\n" + "\n".join(group_list[:8])
@@ -806,22 +756,22 @@ async def send_message_to_groups(user_id, message_text):
         return groups_sent, result_text
         
     except Exception as e:
-        return 0, f"❌ Xatolik: {str(e)}"
+        return 0, f"Xatolik: {str(e)}"
 
 async def handle_message_sending(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     text = update.message.text
     
-    if text == '🔙 Bekor qilish':
-        await update.message.reply_text("❌ Xabar yuborish bekor qilindi!")
+    if text == 'Bekor qilish':
+        await update.message.reply_text("Xabar yuborish bekor qilindi!")
         await start(update, context)
         return ConversationHandler.END
     
     if user_id not in users or users[user_id].get('client') is None:
         await update.message.reply_text(
-            """❌ Akkaunt to'g'ri qo'shilgan emas!
+            """Akkaunt to'g'ri qo'shilgan emas!
 
-➕ Akkaunt Qo'shish ni qayta bajaring."""
+Akkaunt Qo'shish ni qayta bajaring."""
         )
         return ConversationHandler.END
     
@@ -830,13 +780,13 @@ async def handle_message_sending(update: Update, context: ContextTypes.DEFAULT_T
     users[user_id]['last_message'] = message_text
     
     keyboard = [
-        ['⏱️ Har 5 daqiqa', '⏱️ Har 10 daqiqa'],
-        ['⏱️ Har 30 daqiqa', '⏱️ Har 1 soat'],
-        ['🔙 Bekor qilish']
+        ['Har 5 daqiqa', 'Har 10 daqiqa'],
+        ['Har 30 daqiqa', 'Har 1 soat'],
+        ['Bekor qilish']
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     await update.message.reply_text(
-        "⏰ Xabarni qancha vaqtda takrorlab yuborishni tanlang:",
+        "Xabarni qancha vaqtda takrorlab yuborishni tanlang:",
         reply_markup=reply_markup
     )
     return INTERVAL
@@ -845,62 +795,46 @@ async def handle_interval(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     text = update.message.text
     
-    if text == '🔙 Bekor qilish':
-        await update.message.reply_text("❌ Xabar yuborish bekor qilindi!")
+    if text == 'Bekor qilish':
+        await update.message.reply_text("Xabar yuborish bekor qilindi!")
         await start(update, context)
         return ConversationHandler.END
     
     message_text = users[user_id]['message']
     
-    if text == '⏱️ Har 5 daqiqa':
-        interval = 300  # 5 daqiqa
+    if text == 'Har 5 daqiqa':
+        interval = 300
         interval_text = "5 daqiqa"
-    elif text == '⏱️ Har 10 daqiqa':
-        interval = 600  # 10 daqiqa
+    elif text == 'Har 10 daqiqa':
+        interval = 600
         interval_text = "10 daqiqa"
-    elif text == '⏱️ Har 30 daqiqa':
-        interval = 1800  # 30 daqiqa
+    elif text == 'Har 30 daqiqa':
+        interval = 1800
         interval_text = "30 daqiqa"
-    elif text == '⏱️ Har 1 soat':
-        interval = 3600  # 1 soat
+    elif text == 'Har 1 soat':
+        interval = 3600
         interval_text = "1 soat"
     else:
-        await update.message.reply_text("❌ Noto'g'ri tanlov!")
+        await update.message.reply_text("Noto'g'ri tanlov!")
         return INTERVAL
     
-    notification_text = "✅ Xabaringiz guruhlarga yuborildi!"
-    
-    # Foydalanuvchi ma'lumotlarini yangilash
     users[user_id]['current_interval'] = interval_text
     users[user_id]['next_send_time'] = datetime.now().isoformat()
-    
     save_data()
     
-    # Takroriy yuborishni sozlash
     job_name = f"repeat_send_{user_id}"
-    
-    # Avvalgi jobni o'chirish
     current_jobs = context.job_queue.get_jobs_by_name(job_name)
     for job in current_jobs:
         job.schedule_removal()
-        print(f"Eski job o'chirildi: {job_name}")
     
-    # Yangi job yaratish
     async def repeat_send(context: ContextTypes.DEFAULT_TYPE):
         user_id = context.job.data
-        print(f"Takroriy yuborish: {user_id} - {datetime.now()}")
-        
         if user_id not in users or not users[user_id].get('last_message'):
-            print(f"Xabar topilmadi: {user_id}")
             return
             
         message_text = users[user_id]['last_message']
-        
-        print(f"Xabar yuborilmoqda: {message_text[:50]}...")
         sent_count, result_text = await send_message_to_groups(user_id, message_text)
-        print(f"Yuborildi: {sent_count} guruhga")
         
-        # Statistika yangilash
         if str(user_id) not in user_stats:
             user_stats[str(user_id)] = {'total_groups': 0, 'total_messages': 0, 'last_sent': None, 'daily_messages': {}}
         
@@ -913,101 +847,83 @@ async def handle_interval(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user_stats[str(user_id)]['daily_messages'] = {}
         user_stats[str(user_id)]['daily_messages'][today] = user_stats[str(user_id)]['daily_messages'].get(today, 0) + sent_count
         
-        # Keyingi xabar vaqtini yangilash
         users[user_id]['next_send_time'] = (datetime.now() + timedelta(seconds=interval)).isoformat()
         save_data()
         
-        # Foydalanuvchini OGOHLANTIRISH
-        report_text = f"""{notification_text}
+        report_text = f"""Xabaringiz guruhlarga yuborildi!
 
-📊 Statistika:
-├─ ✅ Yuborildi: {sent_count} guruhga
-├─ ⏰ Vaqt: {datetime.now().strftime('%H:%M:%S')}
-└─ 📅 Sana: {datetime.now().strftime('%Y-%m-%d')}
+Statistika:
+├─ Yuborildi: {sent_count} guruhga
+├─ Vaqt: {datetime.now().strftime('%H:%M:%S')}
+└─ Sana: {datetime.now().strftime('%Y-%m-%d')}
 
-🎯 Keyingi xabar {interval_text}dan so'ng yuboriladi"""
+Keyingi xabar {interval_text}dan so'ng yuboriladi"""
         
         try:
-            await context.bot.send_message(
-                chat_id=user_id,
-                text=report_text
-            )
-            print(f"Ogohlantirish yuborildi: {user_id}")
+            await context.bot.send_message(chat_id=user_id, text=report_text)
         except Exception as e:
             print(f"Ogohlantirish yuborishda xatolik: {e}")
     
-    # Jobni ishga tushirish
     context.job_queue.run_repeating(
         repeat_send,
         interval=interval,
-        first=0,  # Birinchi takrorlash darhol
+        first=0,
         name=job_name,
         data=user_id
     )
     
-    print(f"Yangi job yaratildi: {job_name}, interval: {interval}s")
-    
     await update.message.reply_text(
-        f"""✅ Xabar takrorlanib yuboriladi!
+        f"""Xabar takrorlanib yuboriladi!
 
-⏰ Interval: {interval_text}
-📝 Har {interval_text}da 1 ta xabar yuboriladi
-🔔 Har safar ogohlantirish olasiz:
-   "✅ Xabaringiz guruhlarga yuborildi!"
+Interval: {interval_text}
+Har {interval_text}da 1 ta xabar yuboriladi
+Har safar ogohlantirish olasiz
 
-⏳ Birinchi yuborish: Tez orada
-⏳ Keyingi yuborishlar: har {interval_text}da
+Birinchi yuborish: Tez orada
+Keyingi yuborishlar: har {interval_text}da
 
-🏠 Asosiy menyuga qaytildi."""
+Asosiy menyuga qaytildi."""
     )
-    
-    # Asosiy menyuga qaytish
     await start(update, context)
     return ConversationHandler.END
 
-# ADMIN PANEL
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     if user_id not in admins:
-        await update.message.reply_text("❌ Siz admin emassiz!")
+        await update.message.reply_text("Siz admin emassiz!")
         return
     
-    # Admin holatini tozalash
     context.user_data['admin_action'] = None
     context.user_data['target_user_input'] = None
     
-    # Asosiy admin va boshqa adminlar uchun turli tugmalar
     if user_id == MAIN_ADMIN_ID:
-        # Asosiy admin uchun barcha tugmalar
         keyboard = [
-            ['✅ Ruxsat Berish', '❌ Ruxsatni Olib Tashlash'],
-            ['➕ Admin Qo\'shish', '➖ Admin O\'chirish'],
-            ['💰 Obuna Narxi', '📊 Statistika'],
-            ['📢 Xabar Yuborish', '🏠 Asosiy Menyu']
+            ['Ruxsat Berish', 'Ruxsatni Olib Tashlash'],
+            ['Admin Qo\'shish', 'Admin O\'chirish'],
+            ['Obuna Narxi', 'Statistika'],
+            ['Xabar Yuborish', 'Asosiy Menyu']
         ]
     else:
-        # Boshqa adminlar uchun cheklangan tugmalar
         keyboard = [
-            ['✅ Ruxsat Berish', '❌ Ruxsatni Olib Tashlash'],
-            ['📊 Statistika', '📢 Xabar Yuborish'],
-            ['🏠 Asosiy Menyu']
+            ['Ruxsat Berish', 'Ruxsatni Olib Tashlash'],
+            ['Statistika', 'Xabar Yuborish'],
+            ['Asosiy Menyu']
         ]
     
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     
-    admin_text = """👑 Admin Paneliga Xush Kelibsiz
+    admin_text = """Admin Paneliga Xush Kelibsiz
 
-⚡ Quyidagi Imkoniyatlar Mavjud:
-• ✅ Ruxsat berish
-• ❌ Ruxsatni olib tashlash  
-• 📊 Statistika ko'rish
-• 📢 Barchaga xabar yuborish"""
+Quyidagi Imkoniyatlar Mavjud:
+• Ruxsat berish
+• Ruxsatni olib tashlash  
+• Statistika ko'rish
+• Barchaga xabar yuborish"""
 
-    # Asosiy admin uchun qo'shimcha imkoniyatlarni ko'rsatish
     if user_id == MAIN_ADMIN_ID:
-        admin_text += "\n• ➕ Admin Qo'shish\n• ➖ Admin O'chirish\n• 💰 Obuna narxini o'zgartirish"
+        admin_text += "\n• Admin Qo'shish\n• Admin O'chirish\n• Obuna narxini o'zgartirish"
 
-    admin_text += "\n\n🎯 Botni Boshqarish"
+    admin_text += "\n\nBotni Boshqarish"
     
     await update.message.reply_text(admin_text, reply_markup=reply_markup)
     return "ADMIN_ACTIONS"
@@ -1019,9 +935,9 @@ async def handle_admin_actions(update: Update, context: ContextTypes.DEFAULT_TYP
     
     text = update.message.text
     
-    if text == '✅ Ruxsat Berish':
+    if text == 'Ruxsat Berish':
         await update.message.reply_text(
-            """👤 Ruxsat Berish
+            """Ruxsat Berish
 
 Foydalanuvchi ID sini yoki username ni kiriting:
 Misol: 123456789 yoki @username""",
@@ -1030,9 +946,9 @@ Misol: 123456789 yoki @username""",
         context.user_data['admin_action'] = 'grant_access'
         return "ADMIN_INPUT"
     
-    elif text == '❌ Ruxsatni Olib Tashlash':
+    elif text == 'Ruxsatni Olib Tashlash':
         await update.message.reply_text(
-            """👤 Ruxsatni Olib Tashlash
+            """Ruxsatni Olib Tashlash
 
 Foydalanuvchi ID sini yoki username ni kiriting:
 Misol: 123456789 yoki @username""",
@@ -1041,14 +957,14 @@ Misol: 123456789 yoki @username""",
         context.user_data['admin_action'] = 'remove_access'
         return "ADMIN_INPUT"
     
-    elif text == '➕ Admin Qo\'shish':
+    elif text == 'Admin Qo\'shish':
         if user_id != MAIN_ADMIN_ID:
-            await update.message.reply_text("❌ Sizda admin qo'shish huquqi yo'q!")
+            await update.message.reply_text("Sizda admin qo'shish huquqi yo'q!")
             await admin_panel(update, context)
             return "ADMIN_ACTIONS"
             
         await update.message.reply_text(
-            """👤 Yangi Admin Qo'shish
+            """Yangi Admin Qo'shish
 
 Foydalanuvchi ID sini yoki username ni kiriting:
 Misol: 123456789 yoki @username""",
@@ -1057,14 +973,14 @@ Misol: 123456789 yoki @username""",
         context.user_data['admin_action'] = 'add_admin'
         return "ADMIN_INPUT"
     
-    elif text == '➖ Admin O\'chirish':
+    elif text == 'Admin O\'chirish':
         if user_id != MAIN_ADMIN_ID:
-            await update.message.reply_text("❌ Sizda admin o'chirish huquqi yo'q!")
+            await update.message.reply_text("Sizda admin o'chirish huquqi yo'q!")
             await admin_panel(update, context)
             return "ADMIN_ACTIONS"
             
         await update.message.reply_text(
-            """👤 Adminni O'chirish
+            """Adminni O'chirish
 
 Foydalanuvchi ID sini yoki username ni kiriting:
 Misol: 123456789 yoki @username""",
@@ -1073,14 +989,14 @@ Misol: 123456789 yoki @username""",
         context.user_data['admin_action'] = 'remove_admin'
         return "ADMIN_INPUT"
     
-    elif text == '💰 Obuna Narxi':
+    elif text == 'Obuna Narxi':
         if user_id != MAIN_ADMIN_ID:
-            await update.message.reply_text("❌ Sizda obuna narxini o'zgartirish huquqi yo'q!")
+            await update.message.reply_text("Sizda obuna narxini o'zgartirish huquqi yo'q!")
             await admin_panel(update, context)
             return "ADMIN_ACTIONS"
             
         await update.message.reply_text(
-            f"""💳 Joriy Obuna Narxi: {subscription_price} so'm
+            f"""Joriy Obuna Narxi: {subscription_price} so'm
 
 Yangi obuna narxini kiriting (so'mda):""",
             reply_markup=ReplyKeyboardRemove()
@@ -1088,19 +1004,17 @@ Yangi obuna narxini kiriting (so'mda):""",
         context.user_data['admin_action'] = 'set_price'
         return "ADMIN_INPUT"
     
-    elif text == '📊 Statistika':
+    elif text == 'Statistika':
         pdf_filename = 'users_stats.pdf'
         doc = SimpleDocTemplate(pdf_filename, pagesize=A4)
         styles = getSampleStyleSheet()
         elements = []
         
-        # Sarlavha
         title_style = styles['Title']
         title_style.fontSize = 14
         elements.append(Paragraph("Foydalanuvchilar Statistikasi", title_style))
         elements.append(Spacer(1, 10))
 
-        # Jami statistika
         total_users = len(users)
         subscribed_users = sum(1 for user_data in users.values() if user_data.get('subscribed') and (datetime.fromisoformat(user_data['subscription_end']) - datetime.now()).days > 0)
         total_messages = sum(stats.get('total_messages', 0) for stats in user_stats.values())
@@ -1118,23 +1032,20 @@ Yangi obuna narxini kiriting (so'mda):""",
         elements.append(Paragraph(f"Obuna narxi: {subscription_price} so'm", normal_style))
         elements.append(Spacer(1, 10))
         
-        # Jadval uchun ma'lumotlar
         data = [['ID', 'Ism', 'Username', 'Telefon', 'Obuna', 'Ro\'yxatdan o\'tgan']]
         
         for uid, user_data in users.items():
-            obuna = "❌ Yo'q"
+            obuna = "Yo'q"
             if user_data.get('subscribed'):
                 end_date = datetime.fromisoformat(user_data['subscription_end'])
                 days_left = (end_date - datetime.now()).days
                 if days_left > 0:
-                    obuna = f"✅ Faol ({days_left} kun)"
+                    obuna = f"Faol ({days_left} kun)"
                 else:
-                    obuna = "❌ Tugagan"
+                    obuna = "Tugagan"
             
             name = user_data.get('full_name', 'Noma\'lum')[:15]
             username = f"@{user_data.get('username', 'yo\'q')}" if user_data.get('username') else 'yo\'q'
-            
-            # Telefon raqamini xavfsiz ko'rsatish
             phone = user_data.get('phone', 'yo\'q')
             if phone and phone != 'yo\'q':
                 phone = phone[:12]
@@ -1143,7 +1054,6 @@ Yangi obuna narxini kiriting (so'mda):""",
             
             data.append([str(uid)[:8], name, username, phone, obuna, reg_date])
         
-        # Jadvalni yaratish
         table = Table(data, colWidths=[60, 80, 80, 80, 80, 60])
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
@@ -1164,10 +1074,10 @@ Yangi obuna narxini kiriting (so'mda):""",
             await update.message.reply_document(
                 document=open(pdf_filename, 'rb'), 
                 filename='users_stats.pdf',
-                caption="📊 Foydalanuvchilar statistikasi"
+                caption="Foydalanuvchilar statistikasi"
             )
         except Exception as e:
-            error_text = f"❌ Statistika PDF yaratishda xatolik: {str(e)}"
+            error_text = f"Statistika PDF yaratishda xatolik: {str(e)}"
             await update.message.reply_text(error_text)
         finally:
             if os.path.exists(pdf_filename):
@@ -1178,11 +1088,11 @@ Yangi obuna narxini kiriting (so'mda):""",
         
         return "ADMIN_ACTIONS"
     
-    elif text == '📢 Xabar Yuborish':
-        keyboard = [['🔙 Orqaga']]
+    elif text == 'Xabar Yuborish':
+        keyboard = [['Orqaga']]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
-            """📢 Barcha Foydalanuvchilarga Xabar Yuborish
+            """Barcha Foydalanuvchilarga Xabar Yuborish
 
 Yuboriladigan xabarni kiriting:""",
             reply_markup=reply_markup
@@ -1190,7 +1100,7 @@ Yuboriladigan xabarni kiriting:""",
         context.user_data['admin_action'] = 'broadcast'
         return "ADMIN_INPUT"
     
-    elif text == '🏠 Asosiy Menyu':
+    elif text == 'Asosiy Menyu':
         await start(update, context)
         return ConversationHandler.END
     
@@ -1204,17 +1114,17 @@ async def handle_admin_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
     text = update.message.text.strip()
     admin_action = context.user_data.get('admin_action')
     
-    if text == '🔙 Orqaga':
+    if text == 'Orqaga':
         context.user_data['admin_action'] = None
         await admin_panel(update, context)
         return "ADMIN_ACTIONS"
     
     if admin_action == 'grant_access':
         context.user_data['target_user_input'] = text
-        keyboard = [['Reklama bilan', 'Reklamasiz'], ['🔙 Orqaga']]
+        keyboard = [['Reklama bilan', 'Reklamasiz'], ['Orqaga']]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
-            "📢 Reklama qo'shishni tanlang:",
+            "Reklama qo'shishni tanlang:",
             reply_markup=reply_markup
         )
         return AD_CHOICE
@@ -1246,32 +1156,32 @@ async def handle_admin_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
             try:
                 await context.bot.send_message(
                     chat_id=target_user_id,
-                    text="""❌ Obuna Ruxsatingiz Olib Tashlandi!
+                    text="""Obuna Ruxsatingiz Olib Tashlandi!
 
-💰 Yangi obuna sotib olish uchun admin bilan bog'laning.
+Yangi obuna sotib olish uchun admin bilan bog'laning.
 
-👨‍💼 Admin: @MasulyatliOdam"""
+Admin: @MasulyatliOdam"""
                 )
-                user_msg = "✅ Foydalanuvchiga xabar yuborildi"
+                user_msg = "Foydalanuvchiga xabar yuborildi"
             except Exception as e:
-                user_msg = f"⚠️ Foydalanuvchiga xabar yuborish mumkin emas: {str(e)}"
+                user_msg = f"Foydalanuvchiga xabar yuborish mumkin emas: {str(e)}"
             
-            admin_notification = f"""❌ RUXSAT OLIB TASHLANDI
+            admin_notification = f"""RUXSAT OLIB TASHLANDI
 
-👤 Foydalanuvchi:
+Foydalanuvchi:
 ├─ ID: {str(target_user_id)}
 ├─ Ism: {user_found.get('full_name', "Noma'lum")}
 ├─ Username: @{user_found.get('username', "yo'q")}
 └─ Telefon: {user_found.get('phone', "yo'q")}
 
-📅 Amal vaqti: {datetime.now().strftime('%Y-%m-%d %H:%M')}"""
+Amal vaqti: {datetime.now().strftime('%Y-%m-%d %H:%M')}"""
             
             await update.message.reply_text(admin_notification)
             save_data()
         else:
             await update.message.reply_text(
-                f"❌ Foydalanuvchi topilmadi!\n"
-                f"🔍 Qidiruv: {text}"
+                f"Foydalanuvchi topilmadi!\n"
+                f"Qidiruv: {text}"
             )
         
         context.user_data['admin_action'] = None
@@ -1280,7 +1190,7 @@ async def handle_admin_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     elif admin_action == 'add_admin':
         if user_id != MAIN_ADMIN_ID:
-            await update.message.reply_text("❌ Sizda admin qo'shish huquqi yo'q!")
+            await update.message.reply_text("Sizda admin qo'shish huquqi yo'q!")
             await admin_panel(update, context)
             return "ADMIN_ACTIONS"
             
@@ -1306,7 +1216,7 @@ async def handle_admin_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
         
         if user_found and target_user_id:
             if target_user_id in admins:
-                await update.message.reply_text("❌ Bu foydalanuvchi allaqachon admin!")
+                await update.message.reply_text("Bu foydalanuvchi allaqachon admin!")
             else:
                 admins.add(target_user_id)
                 save_data()
@@ -1314,28 +1224,28 @@ async def handle_admin_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 try:
                     await context.bot.send_message(
                         chat_id=target_user_id,
-                        text="""🎉 Tabriklaymiz! Sizga admin huquqi berildi!
+                        text="""Tabriklaymiz! Sizga admin huquqi berildi!
 
-✅ Endi admin panelidan foydalanishingiz mumkin."""
+Endi admin panelidan foydalanishingiz mumkin."""
                     )
                 except Exception as e:
                     print(f"Xabar yuborishda xatolik: {e}")
                 
-                admin_notification = f"""✅ YANGI ADMIN QO'SHILDI
+                admin_notification = f"""YANGI ADMIN QO'SHILDI
 
-👤 Foydalanuvchi:
+Foydalanuvchi:
 ├─ ID: {str(target_user_id)}
 ├─ Ism: {user_found.get('full_name', "Noma'lum")}
 ├─ Username: @{user_found.get('username', "yo'q")}
 └─ Telefon: {user_found.get('phone', "yo'q")}
 
-📅 Amal vaqti: {datetime.now().strftime('%Y-%m-%d %H:%M')}"""
+Amal vaqti: {datetime.now().strftime('%Y-%m-%d %H:%M')}"""
                 
                 await update.message.reply_text(admin_notification)
         else:
             await update.message.reply_text(
-                f"❌ Foydalanuvchi topilmadi!\n"
-                f"🔍 Qidiruv: {text}"
+                f"Foydalanuvchi topilmadi!\n"
+                f"Qidiruv: {text}"
             )
         
         context.user_data['admin_action'] = None
@@ -1344,7 +1254,7 @@ async def handle_admin_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     elif admin_action == 'remove_admin':
         if user_id != MAIN_ADMIN_ID:
-            await update.message.reply_text("❌ Sizda admin o'chirish huquqi yo'q!")
+            await update.message.reply_text("Sizda admin o'chirish huquqi yo'q!")
             await admin_panel(update, context)
             return "ADMIN_ACTIONS"
             
@@ -1370,9 +1280,9 @@ async def handle_admin_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
         
         if user_found and target_user_id:
             if target_user_id not in admins:
-                await update.message.reply_text("❌ Bu foydalanuvchi admin emas!")
+                await update.message.reply_text("Bu foydalanuvchi admin emas!")
             elif target_user_id == MAIN_ADMIN_ID:
-                await update.message.reply_text("❌ Asosiy adminni o'chirib bo'lmaydi!")
+                await update.message.reply_text("Asosiy adminni o'chirib bo'lmaydi!")
             else:
                 admins.remove(target_user_id)
                 save_data()
@@ -1380,26 +1290,26 @@ async def handle_admin_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 try:
                     await context.bot.send_message(
                         chat_id=target_user_id,
-                        text="""❌ Sizning admin huquqingiz olib tashlandi!"""
+                        text="""Sizning admin huquqingiz olib tashlandi!"""
                     )
                 except Exception as e:
                     print(f"Xabar yuborishda xatolik: {e}")
                 
-                admin_notification = f"""❌ ADMIN O'CHIRILDI
+                admin_notification = f"""ADMIN O'CHIRILDI
 
-👤 Foydalanuvchi:
+Foydalanuvchi:
 ├─ ID: {str(target_user_id)}
 ├─ Ism: {user_found.get('full_name', "Noma'lum")}
 ├─ Username: @{user_found.get('username', "yo'q")}
 └─ Telefon: {user_found.get('phone', "yo'q")}
 
-📅 Amal vaqti: {datetime.now().strftime('%Y-%m-%d %H:%M')}"""
+Amal vaqti: {datetime.now().strftime('%Y-%m-%d %H:%M')}"""
                 
                 await update.message.reply_text(admin_notification)
         else:
             await update.message.reply_text(
-                f"❌ Foydalanuvchi topilmadi!\n"
-                f"🔍 Qidiruv: {text}"
+                f"Foydalanuvchi topilmadi!\n"
+                f"Qidiruv: {text}"
             )
         
         context.user_data['admin_action'] = None
@@ -1408,7 +1318,7 @@ async def handle_admin_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     elif admin_action == 'set_price':
         if user_id != MAIN_ADMIN_ID:
-            await update.message.reply_text("❌ Sizda obuna narxini o'zgartirish huquqi yo'q!")
+            await update.message.reply_text("Sizda obuna narxini o'zgartirish huquqi yo'q!")
             await admin_panel(update, context)
             return "ADMIN_ACTIONS"
             
@@ -1419,11 +1329,11 @@ async def handle_admin_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
             save_data()
             
             await update.message.reply_text(
-                f"✅ Obuna narxi muvaffaqiyatli o'zgartirildi!\n\n"
-                f"💰 Yangi narx: {subscription_price} so'm"
+                f"Obuna narxi muvaffaqiyatli o'zgartirildi!\n\n"
+                f"Yangi narx: {subscription_price} so'm"
             )
         else:
-            await update.message.reply_text("❌ Iltimos, faqat raqam kiriting!")
+            await update.message.reply_text("Iltimos, faqat raqam kiriting!")
         
         context.user_data['admin_action'] = None
         await admin_panel(update, context)
@@ -1437,7 +1347,7 @@ async def handle_admin_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
         broadcast_text = message
         
         progress_msg = await update.message.reply_text(
-            "📤 Xabar barcha foydalanuvchilaga yuborilmoqda..."
+            "Xabar barcha foydalanuvchilaga yuborilmoqda..."
         )
         
         for uid in users.keys():
@@ -1458,10 +1368,10 @@ async def handle_admin_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
             pass
         
         await update.message.reply_text(
-            f"""📢 Xabar Yuborish Yakunlandi!
+            f"""Xabar Yuborish Yakunlandi!
 
-✅ Muvaffaqiyatli: {successful}
-❌ Xatolik: {failed}"""
+Muvaffaqiyatli: {successful}
+Xatolik: {failed}"""
         )
         
         context.user_data['admin_action'] = None
@@ -1474,7 +1384,7 @@ async def handle_ad_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     text = update.message.text
     
-    if text == '🔙 Orqaga':
+    if text == 'Orqaga':
         context.user_data['admin_action'] = None
         await admin_panel(update, context)
         return "ADMIN_ACTIONS"
@@ -1513,39 +1423,38 @@ async def handle_ad_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             await context.bot.send_message(
                 chat_id=target_user_id,
-                text="""🎉 Tabriklaymiz! Obuna Ruxsati Berildi!
+                text="""Tabriklaymiz! Obuna Ruxsati Berildi!
 
-✅ Endi siz botdan to'liq foydalanishingiz mumkin!
-📤 Xabar yuborish funksiyasi faollashtirildi.
+Endi siz botdan to'liq foydalanishingiz mumkin!
+Xabar yuborish funksiyasi faollashtirildi.
 
-🤖 Bot: @AvtoXabarBot"""
+Bot: @AvtoXabarrBot"""
             )
-            user_msg = "✅ Foydalanuvchiga xabar yuborildi"
+            user_msg = "Foydalanuvchiga xabar yuborildi"
         except Exception as e:
-            user_msg = f"⚠️ Foydalanuvchiga xabar yuborish mumkin emas: {str(e)}"
+            user_msg = f"Foydalanuvchiga xabar yuborish mumkin emas: {str(e)}"
         
         ad_status = "Reklama bilan" if add_ad else "Reklamasiz"
-        admin_notification = f"""✅ RUXSAT BERILDI
+        admin_notification = f"""RUXSAT BERILDI
 
-👤 Foydalanuvchi:
+Foydalanuvchi:
 ├─ ID: {str(target_user_id)}
 ├─ Ism: {user_found.get('full_name', "Noma'lum")}
 ├─ Username: @{user_found.get('username', "yo'q")}
 └─ Telefon: {user_found.get('phone', "yo'q")}
 
-⏰ Muddat: 30 kun
-📅 Tugash sanasi: {(datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')}
-📢 Reklama: {ad_status}"""
+Muddat: 30 kun
+Tugash sanasi: {(datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')}
+Reklama: {ad_status}"""
         
         await update.message.reply_text(admin_notification)
         save_data()
     else:
         await update.message.reply_text(
-            f"❌ Foydalanuvchi topilmadi!\n"
-            f"🔍 Qidiruv: {target_user_input}"
+            f"Foydalanuvchi topilmadi!\n"
+            f"Qidiruv: {target_user_input}"
         )
     
-    # Admin paneliga qaytish
     context.user_data['admin_action'] = None
     context.user_data['target_user_input'] = None
     await admin_panel(update, context)
@@ -1558,9 +1467,9 @@ async def cancel_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def debug_jobs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     jobs = context.job_queue.jobs()
-    debug_text = f"🔧 Faol joblar: {len(jobs)}\n"
+    debug_text = f"Faol joblar: {len(jobs)}\n"
     for job in jobs:
-        debug_text += f"📋 {job.name}\n"
+        debug_text += f"{job.name}\n"
     await update.message.reply_text(debug_text)
 
 def main():
@@ -1576,30 +1485,17 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_callback_query))
     
     admin_conv_handler = ConversationHandler(
-        entry_points=[
-            MessageHandler(filters.Regex(r'^👨‍💼 Admin Panel$'), admin_panel)
-        ],
+        entry_points=[MessageHandler(filters.Regex(r'^Admin Panel$'), admin_panel)],
         states={
-            "ADMIN_ACTIONS": [
-                MessageHandler(
-                    filters.Regex(r'^(✅ Ruxsat Berish|❌ Ruxsatni Olib Tashlash|➕ Admin Qo\'shish|➖ Admin O\'chirish|💰 Obuna Narxi|📊 Statistika|📢 Xabar Yuborish|🏠 Asosiy Menyu)$'), 
-                    handle_admin_actions
-                )
-            ],
-            "ADMIN_INPUT": [
-                MessageHandler(filters.TEXT, handle_admin_input)
-            ],
-            AD_CHOICE: [
-                MessageHandler(filters.TEXT, handle_ad_choice)
-            ],
+            "ADMIN_ACTIONS": [MessageHandler(filters.Regex(r'^(Ruxsat Berish|Ruxsatni Olib Tashlash|Admin Qo\'shish|Admin O\'chirish|Obuna Narxi|Statistika|Xabar Yuborish|Asosiy Menyu)$'), handle_admin_actions)],
+            "ADMIN_INPUT": [MessageHandler(filters.TEXT, handle_admin_input)],
+            AD_CHOICE: [MessageHandler(filters.TEXT, handle_ad_choice)],
         },
         fallbacks=[CommandHandler("start", cancel_admin)],
     )
     
     main_conv_handler = ConversationHandler(
-        entry_points=[
-            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_buttons)
-        ],
+        entry_points=[MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_buttons)],
         states={
             PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_phone)],
             API_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_api_id)],
@@ -1616,9 +1512,17 @@ def main():
     app.add_handler(admin_conv_handler)
     app.add_handler(main_conv_handler)
     
-    print("🤖 Bot ishga tushdi:", time.ctime())
-    app.run_polling()
+    print("Bot ishga tushdi (WEBHOOK REJIMIDA):", time.ctime())
+
+    # RENDER.COM UCHUN WEBHOOK
+    PORT = int(os.environ.get('PORT', 8443))
+    application = app
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        url_path=TOKEN,
+        webhook_url=f"https://avtoxabar-bot.onrender.com/{TOKEN}"
+    )
 
 if __name__ == "__main__":
-
     main()
