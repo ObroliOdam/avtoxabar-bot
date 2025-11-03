@@ -15,7 +15,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 
 # Bot tokeni va Admin ID
-TOKEN = '8472267236:AAE0VUavGJqUuOPMcIxR92HuQzNFeltJQZI'
+TOKEN = os.getenv('TOKEN')
 MAIN_ADMIN_ID = 8368965746
 ADMIN_USERNAME = "MasulyatliOdam"
 BOT_USERNAME = "AvtoXabarrBot"
@@ -1620,4 +1620,5 @@ def main():
     app.run_polling()
 
 if __name__ == "__main__":
+
     main()
